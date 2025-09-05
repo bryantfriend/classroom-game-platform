@@ -1,4 +1,4 @@
-const firebaseConfig = {
+export const firebaseConfig = {
   apiKey: "AIzaSyBkcPon3PsSNzTqNYhBmTbdQWE9Mj6ZRII",
   authDomain: "classroom-game-platform.firebaseapp.com",
   databaseURL: "https://classroom-game-platform-default-rtdb.firebaseio.com", // important
