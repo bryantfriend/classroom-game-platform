@@ -1,0 +1,12 @@
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Node (if you ever add local tools)
+node_modules/
+
+# Editor
+.vscode/
+
+# Local Firebase emulator/state (if used later)
+.firebase/

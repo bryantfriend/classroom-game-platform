@@ -1,0 +1,129 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Classroom Game Screen</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Classroom Game Platform • <span id="moduleName">None</span></h1>
+    <div class="card">
+      <div class="row">
+        <div>
+          <label>Room Code</label>
+          <div class="pill"><b id="roomCode">—</b></div>
+        </div>
+        <div style="flex:1"></div>
+        <div>
+          <label>Module</label>
+          <select id="moduleSelect">
+            <option value="buzzer">Quick Buzzer</option>
+            <option value="trashdash">Trash Dash</option>
+          </select>
+        </div>
+        <div>
+          <label>Locale</label>
+          <select id="localeSelect">
+            <option value="en">English</option>
+            <option value="ru">Русский</option>
+          </select>
+        </div>
+        <div><button id="newRoomBtn">New Room</button></div>
+        <div><button id="startBtn">Start</button></div>
+        <div><button id="endBtn">End</button></div>
+      </div>
+      <div class="small">Controllers open: <code id="controllerUrl">—</code></div>
+    </div>
+
+    <div id="screenArea" class="card" style="margin-top:12px;">
+      <canvas id="gameCanvas" width="960" height="540" class="canvas"></canvas>
+      <div id="buzzerArea" style="display:none;">
+        <h2>Buzzer</h2>
+        <div id="buzzLog" class="small"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>Players</h3>
+      <div id="players" class="grid"></div>
+    </div>
+
+    <hr/>
+    <div class="small">Tip: share the URL <code id="joinTip"></code> and room code with students.</div>
+  </div>
+
+  <script type="module">
+    import { db, createRoom, roomRefs, onRoom, sendAction } from "./js/core.js";
+    import * as Buzzer from "./js/modules/buzzer.js";
+    import * as TrashDash from "./js/modules/trashdash.js";
+    import { ref, onValue, set, update, push } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-database.js";
+
+    const moduleMap = { buzzer: Buzzer, trashdash: TrashDash };
+    let roomCode = null;
+    let currentModule = null;
+    let roomUnsub = null;
+
+    const el = id => document.getElementById(id);
+    const moduleSelect = el("moduleSelect");
+    const localeSelect = el("localeSelect");
+    const moduleName = el("moduleName");
+
+    async function newRoom(){
+      const { code, roomRef } = await createRoom(moduleSelect.value, localeSelect.value);
+      roomCode = code;
+      el("roomCode").textContent = code;
+      moduleName.textContent = moduleSelect.value;
+      const { uiRef, stateRef } = roomRefs(code);
+      // initialize chosen module
+      currentModule = moduleMap[moduleSelect.value];
+      await currentModule.init({ code, uiRef, stateRef });
+      // subscribe to room changes
+      if (roomUnsub) roomUnsub();
+      roomUnsub = onRoom(code, renderRoom);
+      const url = location.origin + location.pathname.replace("index.html","") + "controller.html";
+      el("controllerUrl").textContent = url;
+      el("joinTip").textContent = url;
+    }
+
+    function renderRoom(room){
+      if(!room) return;
+      // players
+      const list = el("players"); list.innerHTML = "";
+      const players = room.players ? Object.entries(room.players) : [];
+      players.forEach(([id,p])=>{
+        const div = document.createElement("div");
+        div.className = "card";
+        div.innerHTML = \`<b>\${p.name||"Player"}</b><br/><span class="small">score: \${p.score||0}</span>\`;
+        list.appendChild(div);
+      });
+
+      // module-specific draw
+      if (currentModule && currentModule.draw){
+        const canvas = el("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        currentModule.draw({ room, canvas, ctx });
+      }
+      // show/hide buzzer log area
+      el("buzzerArea").style.display = (room.moduleId==="buzzer") ? "block" : "none";
+    }
+
+    el("newRoomBtn").onclick = newRoom;
+    el("startBtn").onclick = async () => {
+      if (!roomCode) return;
+      const { phaseRef } = roomRefs(roomCode);
+      await set(phaseRef, "playing");
+      if (currentModule && currentModule.start) currentModule.start({ code: roomCode });
+    };
+    el("endBtn").onclick = async () => {
+      if (!roomCode) return;
+      const { phaseRef } = roomRefs(roomCode);
+      await set(phaseRef, "ended");
+    };
+
+    // bootstrap new room on load
+    newRoom();
+  </script>
+</body>
+</html>

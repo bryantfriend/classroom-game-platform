@@ -1,0 +1,68 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Controller</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="container">
+    <h1>Controller</h1>
+    <div class="card" id="joinCard">
+      <label>Room Code</label>
+      <input class="input" id="roomCode" placeholder="e.g., ABCD9" maxlength="8">
+      <label>Your name</label>
+      <input class="input" id="yourName" placeholder="e.g., Aizada">
+      <button id="joinBtn">Join</button>
+      <div class="small">Ask teacher for the code. Same Wi‑Fi is fine.</div>
+    </div>
+
+    <div class="card" id="ctrlCard" style="display:none;">
+      <h3 id="greet">Connected</h3>
+      <div id="dynamicButtons" class="grid"></div>
+      <hr/>
+      <div class="small">If buttons don’t appear yet, wait for the teacher to start.</div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { onRoom, joinRoom, sendAction, roomRefs } from "./js/core.js";
+    import { ref, onValue } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-database.js";
+
+    let code=null, playerId=null;
+
+    const el = id => document.getElementById(id);
+    el("joinBtn").onclick = async () => {
+      code = el("roomCode").value.trim().toUpperCase();
+      const name = el("yourName").value.trim() || "Player";
+      if(!code) return alert("Enter room code");
+      const { id } = await joinRoom(code, name);
+      playerId = id;
+      el("joinCard").style.display = "none";
+      el("ctrlCard").style.display = "block";
+      el("greet").textContent = \`\${name} in room \${code}\`;
+      subscribeUI();
+    };
+
+    function subscribeUI(){
+      const { uiRef } = roomRefs(code);
+      onValue(uiRef, snap => {
+        const ui = snap.val() || {};
+        renderButtons(ui.buttons || []);
+      });
+    }
+
+    function renderButtons(buttons){
+      const wrap = el("dynamicButtons");
+      wrap.innerHTML = "";
+      buttons.forEach(btn => {
+        const b = document.createElement("button");
+        b.textContent = btn.label || "Button";
+        b.onclick = () => sendAction(code, playerId, btn.actionType || "tap", { key: btn.key || null });
+        wrap.appendChild(b);
+      });
+    }
+  </script>
+</body>
+</html>
