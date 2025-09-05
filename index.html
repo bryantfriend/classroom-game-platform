@@ -70,8 +70,16 @@
   const localeSelect = el("localeSelect");
   const moduleName = el("moduleName");
 
-  async function newRoom(){
-    const { code } = await (await import("./js/core.js")).createRoom(moduleSelect.value, localeSelect.value);
+// Replace your old newRoom function with this one.
+
+async function newRoom(){
+  console.log("Attempting to create a new room..."); // Log for debugging
+
+  try {
+    // CORRECTED: Call createRoom directly, as it was imported at the top of the script.
+    // Also, correctly get both `code` and `roomRef` from the result.
+    const { code, roomRef } = await createRoom(moduleSelect.value, localeSelect.value);
+
     roomCode = code;
     el("roomCode").textContent = code;
     moduleName.textContent = moduleSelect.value;
@@ -83,12 +91,20 @@
     if (roomUnsub) roomUnsub();
     roomUnsub = onRoom(code, renderRoom);
 
-    // Controller URL (works on GitHub Pages)
     const base = location.origin + location.pathname.replace(/index\.html?$/i, "");
     const ctrlUrl = base.endsWith("/") ? base + "controller.html" : base + "/controller.html";
     el("controllerUrl").textContent = ctrlUrl;
     el("joinTip").textContent = ctrlUrl;
+
+    console.log(`Successfully created room: ${code}`); // Success message
+
+  } catch (error) {
+    // IMPORTANT: This will catch any error during room creation and log it.
+    console.error("Failed to create new room:", error);
+    // You could also update the UI to show the error to the user.
+    el("roomCode").textContent = "ERROR!";
   }
+}
 
   function renderRoom(room){
     if(!room) return;
